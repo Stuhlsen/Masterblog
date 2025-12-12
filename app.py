@@ -21,8 +21,10 @@ def save_posts(posts):
     with open(DATA_FILE, "w", encoding="utf-8") as file:
         json.dump(posts, file, ensure_ascii=False, indent=4)
 
+
 @app.route("/add", methods=["GET", "POST"])
 def add():
+    """Display the add-post form or handle the submission of a new post."""
     if request.method == "POST":
         author = request.form.get("author", "").strip()
         title = request.form.get("title", "").strip()
@@ -47,16 +49,72 @@ def add():
 
         return redirect(url_for("index"))
 
-    # GET: Formular anzeigen
     return render_template("add.html")
+
+
+@app.route("/delete/<int:post_id>")
+def delete(post_id):
+    """Delete a blog post by its ID and redirect back to the homepage."""
+    posts = load_posts()
+    updated_posts = [post for post in posts if post["id"] != post_id]
+
+    if len(updated_posts) != len(posts):
+        save_posts(updated_posts)
+
+    return redirect(url_for("index"))
+
+@app.route("/update/<int:post_id>", methods=["GET", "POST"])
+def update(post_id):
+    """Display a form to update a post or handle the submitted changes."""
+    posts = load_posts()
+    post_index = None
+    post = None
+
+    # Find the post with this ID
+    for index, item in enumerate(posts):
+        if item["id"] == post_id:
+            post_index = index
+            post = item
+            break
+
+    if post is None:
+        return "Post not found", 404
+
+    if request.method == "POST":
+        # Read updated data from the form
+        author = request.form.get("author", "").strip()
+        title = request.form.get("title", "").strip()
+        content = request.form.get("content", "").strip()
+
+        if not author or not title or not content:
+            error_message = "All fields are required."
+            return render_template(
+                "update.html",
+                post=post,
+                error=error_message,
+            )
+
+        # Update the post in the list
+        posts[post_index]["author"] = author
+        posts[post_index]["title"] = title
+        posts[post_index]["content"] = content
+
+        # Save all posts back to JSON
+        save_posts(posts)
+
+        # Redirect to home after successful update
+        return redirect(url_for("index"))
+
+    # GET request → show the form with the current data
+    return render_template("update.html", post=post)
 
 
 
 @app.route("/", methods=["GET"])
 def index():
-    blog_posts = load_posts()  # so wie du es schon hast
+    """Render the homepage and show all blog posts."""
+    blog_posts = load_posts()
     return render_template("index.html", posts=blog_posts)
-
 
 
 if __name__ == "__main__":
